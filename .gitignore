@@ -1,0 +1,17 @@
+#gradle
+.gradle
+
+#intellij
+out
+build
+.idea
+*.iml
+*.iws
+*.ipr
+
+#spark
+warehouse
+
+#app
+logs
+
