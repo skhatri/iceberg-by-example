@@ -2,7 +2,7 @@
     <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <customFields>{"app_name":"microservices-starter-java"}</customFields>
+            <customFields>{"app_name":"iceberg-spark"}</customFields>
         </encoder>
     </appender>
 

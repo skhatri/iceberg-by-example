@@ -1,3 +1,5 @@
+import org.w3c.dom.Element
+
 plugins {
     id("java")
     id("idea")
@@ -7,6 +9,22 @@ plugins {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+
+idea.project.ipr {
+    withXml(Action<XmlProvider> {
+        fun Element.firstElement(predicate: (Element.() -> Boolean)) =
+            childNodes
+                .run { (0 until length).map(::item) }
+                .filterIsInstance<Element>()
+                .first { it.predicate() }
+
+        asElement()
+            .firstElement { tagName == "component" && getAttribute("name") == "VcsDirectoryMappings" }
+            .firstElement { tagName == "mapping" }
+            .setAttribute("vcs", "Git")
+    })
 }
 
 dependencies {
@@ -19,7 +37,7 @@ dependencies {
         }
     }
 
-    listOf("iceberg-spark-3.5_2.13", "iceberg-hive-metastore").forEach {
+    listOf("iceberg-spark-3.5_2.13", "iceberg-spark-extensions-3.5_2.13").forEach {
         implementation("org.apache.iceberg:${it}:1.5.0")
     }
     implementation("org.apache.hadoop:hadoop-aws:3.3.6")
@@ -33,7 +51,7 @@ val targetApp = project.ext["main-class"]
 
 val appArgs = "${project.ext["app-args"]}".split(" ").filter { x -> x != "" }
 
-task("runApp", JavaExec::class) {
+task("runTask", JavaExec::class) {
     mainClass = "${targetApp}"
     classpath = sourceSets["main"].runtimeClasspath
     jvmArgs = listOf(
