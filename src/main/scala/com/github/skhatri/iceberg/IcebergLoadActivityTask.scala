@@ -4,15 +4,24 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.{DateType, DecimalType, DoubleType, StringType, StructField, StructType, TimestampType}
 
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+
 object IcebergLoadActivityTask extends App {
+
+  private val warehouseLocation = Option(System.getenv("CATALOG_WAREHOUSE")) match {
+    case Some(x: String) => x
+    case None => "/tmp/warehouse"
+  }
+
   private val sparkBuilder = SparkSession.builder()
     .appName("iceberg-spark-session")
     .master("local[2]")
     .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
     .config("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog")
-    .config("spark.sql.catalog.iceberg.warehouse", "./warehouse")
+    .config("spark.sql.catalog.iceberg.warehouse", warehouseLocation)
     .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog")
-    .config("spark.sql.catalog.spark_catalog.warehouse", "./warehouse")
+    .config("spark.sql.catalog.spark_catalog.warehouse", warehouseLocation)
 
   private val sparkCatalog = System.getenv("CATALOG_URL") match {
     case url: String if url.startsWith("http") => sparkBuilder
@@ -59,12 +68,12 @@ object IcebergLoadActivityTask extends App {
 
 
   private[this] def loadDataFile(name: String, branch: String = ""): Unit = {
-  val tmpTableName = "iceberg.finance.activity_tmp"
+    val tmpTableName = "iceberg.finance.activity_tmp"
     spark.sql(
       s"""create or replace table $tmpTableName USING iceberg
-        |PARTITIONED BY (txn_date)
-        |AS select * from $tableName limit 0
-        |""".stripMargin)
+         |PARTITIONED BY (txn_date)
+         |AS select * from $tableName limit 0
+         |""".stripMargin)
 
     val activities = spark.read.format("csv")
       .option("header", "true")
@@ -85,13 +94,13 @@ object IcebergLoadActivityTask extends App {
     activities.append()
     spark.sql(
       s"""MERGE INTO $tableName as target
-        |USING $tmpTableName as src
-        |ON target.txn_id = src.txn_id
-        |WHEN MATCHED THEN
-        | UPDATE SET target.amount = src.amount, target.category = src.category, target.last_updated = src.last_updated, target.txn_date = src.txn_date
-        |WHEN NOT MATCHED THEN
-        | INSERT *
-        |""".stripMargin)
+         |USING $tmpTableName as src
+         |ON target.txn_id = src.txn_id
+         |WHEN MATCHED THEN
+         | UPDATE SET target.amount = src.amount, target.category = src.category, target.last_updated = src.last_updated, target.txn_date = src.txn_date
+         |WHEN NOT MATCHED THEN
+         | INSERT *
+         |""".stripMargin)
 
     if (branch.nonEmpty) {
       spark.sql(s"ALTER TABLE $tableName CREATE OR REPLACE BRANCH `$branch`")
@@ -100,21 +109,17 @@ object IcebergLoadActivityTask extends App {
   }
 
   private[this] def printTableMetadata(): Unit = {
+    println("----printing metadata file counts---")
+    printf("Activity History %d \n", spark.sql(s"SELECT * from $tableName.history").count())
 
-    println("Activity History")
-    spark.sql(s"SELECT * from $tableName.history").show(10, truncate = false)
+    printf("Metadata Log Entries %d\n", spark.sql(s"SELECT * from $tableName.metadata_log_entries").count())
 
-    println("Metadata Log Entries")
-    spark.sql(s"SELECT * from $tableName.metadata_log_entries").show(10, truncate = false)
+    printf("Snapshots %d\n", spark.sql(s"SELECT * from $tableName.snapshots").count())
 
-    println("Snapshots")
-    spark.sql(s"SELECT * from $tableName.snapshots").show(10, truncate = false)
+    printf("Manifests %d\n", spark.sql(s"SELECT * from $tableName.manifests").count())
 
-    println("Manifests")
-    spark.sql(s"SELECT * from $tableName.entries").show(10, truncate = false)
-
-    println("Files")
-    spark.sql(s"SELECT * from $tableName.files").show(10, truncate = false)
+    printf("Data Files %d\n", spark.sql(s"SELECT * from $tableName.files").count())
+    println()
 
   }
 
@@ -175,6 +180,18 @@ object IcebergLoadActivityTask extends App {
        |from $tableName
        |where account = 'acc5' and txn_date=cast('2024-03-05' as date) and merchant='Apple Store Sydney'""".stripMargin).show(2, truncate = false)
 
+  private[this] def cleanupMetadata(): Unit = {
+    printTableMetadata()
+    spark.sql(s"call iceberg.system.remove_orphan_files(table => '$tableName', dry_run => true)")
+    spark.sql(s"call iceberg.system.rewrite_data_files(table => '$tableName', strategy => 'sort', sort_order => 'account ASC NULLS LAST, txn_id DESC NULLS FIRST',  options => map('delete-file-threshold', '1'))")
+    spark.sql(s"call iceberg.system.rewrite_manifests('$tableName')")
+    val ts = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").format(ZonedDateTime.now())
+    spark.sql(s"call iceberg.system.expire_snapshots(table => '$tableName', older_than => TIMESTAMP '$ts', retain_last => 3)")
+    spark.sql(s"call iceberg.system.remove_orphan_files(table => '$tableName')")
+    printTableMetadata()
+  }
 
+  spark.sql(s"ALTER TABLE $tableName DROP BRANCH `day1`")
+  cleanupMetadata()
   spark.close()
 }

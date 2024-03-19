@@ -1,23 +1,39 @@
-### Iceberg Spark
+## Iceberg Spark
 
 This project is created to show examples of how Iceberg can be used for various data engineering use cases.
 
-We will run Iceberg REST catalog server first to store iceberg table metadata.
 
+### Run with in memory jdbc catalog
 ```shell
-docker run -p 8181:8181 -it tabulario/iceberg-rest
+unset CATALOG_URL
+unset CATALOG_WAREHOUSE
+./gradlew runTask
 ```
 
-### Run Task with catalog
+
+### Run with Catalog REST Server
+We will run Iceberg REST catalog server first to store iceberg table metadata.
+
+Start Catalog Server
+```shell
+docker run -p 8181:8181 -v $(pwd)/tmp:$(pwd)/tmp \
+-e CATALOG_WAREHOUSE=$(pwd)/tmp/new-warehouse  \
+-e CATALOG_URI=jdbc:sqlite:file:$(pwd)/tmp/iceberg_rest_mode=memory \
+-d tabulario/iceberg-rest
+```
+
+We are ensuring the Catalog warehouse path is the same for both the spark process and the catalog server that runs as a container.
 
 ```
 #not passing catalog url will default to in memory jdbc catalog
 export CATALOG_URL=http://localhost:8181
+export CATALOG_WAREHOUSE=$(pwd)/tmp/new-warehouse
 ./gradlew runTask
 ```
 
-### Query
 
+
+### Query
 We will query the dataset the same way we did with [trino-by-example](https://github.com/skhatri/trino-by-example)
 
 #### Find total number of activities by account
