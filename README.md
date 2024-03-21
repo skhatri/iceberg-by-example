@@ -114,3 +114,14 @@ Acc5 bought something from Apple Store Sydney on 2021-03-05, how did the categor
 | acc5    | 2024-03-05 | txn44  | Apple Store Sydney | 1500.0 | Phone    | 2024-03-09 00:00:00 |
 
 
+### Write Audit Publish (WAP) with Iceberg
+In this instance, our objective is to transfer data into a fresh table mirroring the schema of 'activity', which we dub 'activity2'. 
+Initially, we import clean dataset from a CSV file located in the folder dated 2024-03-02. We initiate the process by configuring spark.wap.branch to 'feature_branch'.
+After the data loading completes, a validation step kicks-in to ensure record integrity. We check for null values across all columns. Should the validation succeed, we advance the pointer to the primary branch corresponding to the WAP branch.
+In cases where validation fails, we discard it. At this point, we delete the WAP branch regardless of the result.
+
+Run this using the following command.
+
+``` 
+./gradlew runTask -Pname=WapIceberg
+```

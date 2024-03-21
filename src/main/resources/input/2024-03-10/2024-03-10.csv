@@ -1,0 +1,4 @@
+account,txn_date,txn_id,merchant,amount,category,last_updated
+acc2,2024-03-10,txn35,"David Jones Sydney",,Fashion,2024-03-08T13:00:00Z
+acc4,2024-03-10,txn41,"Vapiano",20.0,Fast Food,
+acc5,2024-03-10,txn44,"Apple Store Sydney",1500,Phone,
