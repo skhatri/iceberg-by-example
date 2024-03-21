@@ -7,36 +7,9 @@ import org.apache.spark.sql.types.{DateType, DecimalType, DoubleType, StringType
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
-object IcebergLoadActivityTask extends App {
+object IcebergLoadActivityTask extends App with IcebergSupport {
 
-  private val warehouseLocation = Option(System.getenv("CATALOG_WAREHOUSE")) match {
-    case Some(x: String) => x
-    case None => "/tmp/warehouse"
-  }
-
-  private val sparkBuilder = SparkSession.builder()
-    .appName("iceberg-spark-session")
-    .master("local[2]")
-    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-    .config("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog")
-    .config("spark.sql.catalog.iceberg.warehouse", warehouseLocation)
-    .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog")
-    .config("spark.sql.catalog.spark_catalog.warehouse", warehouseLocation)
-
-  private val sparkCatalog = System.getenv("CATALOG_URL") match {
-    case url: String if url.startsWith("http") => sparkBuilder
-      .config("spark.sql.catalog.iceberg.type", "rest")
-      .config("spark.sql.catalog.iceberg.uri", "http://localhost:8181")
-      .config("spark.sql.catalog.spark_catalog.uri", "http://localhost:8181")
-      .config("spark.sql.catalog.spark_catalog.type", "rest")
-    case _ => sparkBuilder
-      .config("spark.sql.catalog.iceberg.type", "jdbc")
-      .config("spark.sql.catalog.iceberg.uri", "jdbc:sqlite:file:/tmp/iceberg_rest_mode=memory")
-      .config("spark.sql.catalog.spark_catalog.type", "jdbc")
-      .config("spark.sql.catalog.spark_catalog.uri", "jdbc:sqlite:file:/tmp/spark_rest_mode=memory")
-  }
-
-  private val spark = sparkCatalog.getOrCreate()
+  private val spark = sparkCatalogBuilder.getOrCreate()
 
   private val tableName = "iceberg.finance.activity"
   spark.sql(s"drop table if exists $tableName")

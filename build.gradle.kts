@@ -47,12 +47,12 @@ dependencies {
     implementation("org.xerial:sqlite-jdbc:3.45.1.0")
 }
 
-val targetApp = project.ext["main-class"]
+val targetApp = project.ext["name"]
 
 val appArgs = "${project.ext["app-args"]}".split(" ").filter { x -> x != "" }
 
 task("runTask", JavaExec::class) {
-    mainClass = "${targetApp}"
+    mainClass = "com.github.skhatri.iceberg.${targetApp}"
     classpath = sourceSets["main"].runtimeClasspath
     jvmArgs = listOf(
         "-Xms512m", "-Xmx1024m", "-XX:+UseZGC",

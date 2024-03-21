@@ -28,6 +28,7 @@ We are ensuring the Catalog warehouse path is the same for both the spark proces
 #not passing catalog url will default to in memory jdbc catalog
 export CATALOG_URL=http://localhost:8181
 export CATALOG_WAREHOUSE=$(pwd)/tmp/new-warehouse
+export CATALOG_URI=jdbc:sqlite:file:$(pwd)/tmp/spark_rest_mode=memory
 ./gradlew runTask
 ```
 
@@ -111,3 +112,5 @@ Acc5 bought something from Apple Store Sydney on 2021-03-05, how did the categor
 | account | txn_date   | txn_id | merchant           | amount | category | last_updated        |
 |---------|------------|--------|--------------------|--------|----------|---------------------|
 | acc5    | 2024-03-05 | txn44  | Apple Store Sydney | 1500.0 | Phone    | 2024-03-09 00:00:00 |
+
+
